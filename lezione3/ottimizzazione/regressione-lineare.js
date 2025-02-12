@@ -5,6 +5,7 @@ let learningRate = 0.05;
 let optimizing = false;
 let button;
 let draggedPoint = null; // Punto attualmente trascinato
+let mse = 0; // Errore Quadratico Medio
 
 function setup() {
   createCanvas(600, 600);
@@ -30,11 +31,18 @@ function draw() {
   // Disegna la retta di regressione (blu)
   drawRegressionLine(k);
 
-  // Mostra il valore attuale di k
+  // Calcola e mostra il valore attuale di k
   fill(0);
   noStroke();
   textSize(16);
-  text("k: " + nf(k, 1, 3), width - 100, 30);
+  text("k: " + nf(k, 1, 3), width - 150, 30);
+
+  // Calcola l'Errore Quadratico Medio
+  mse = computeMSE(k);
+  
+  // Mostra il valore di Errore Quadratico Medio in basso a sinistra
+  textSize(14);
+  text("Errore Quadratico Medio = " + nf(mse, 1, 5), 20, height - 20);
 
   // Se l'ottimizzazione è attiva, aggiorna il coefficiente angolare
   if (optimizing) {
@@ -122,6 +130,21 @@ function computeOptimalK() {
   }
   
   return sumXY / sumX2; // k ottimale
+}
+
+// Calcola l'Errore Quadratico Medio (MSE)
+function computeMSE(m) {
+  if (points.length === 0) return 0;
+  
+  let totalError = 0;
+  for (let p of points) {
+    let x = p.x - width / 2;
+    let y = height / 2 - p.y;
+    let predictedY = m * x;
+    totalError += (y - predictedY) ** 2;
+  }
+  
+  return totalError / points.length;
 }
 
 // Anima il valore di k fino a quello ottimale
