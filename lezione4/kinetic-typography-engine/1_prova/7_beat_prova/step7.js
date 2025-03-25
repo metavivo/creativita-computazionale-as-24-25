@@ -9,7 +9,7 @@ let soundLoaded = false;
 let songTimeLabel;
 
 let textObj;
-let hopDuration = 150;
+let hopDuration = 0.3; // Durata del singolo hop in secondi
 let amount = 120;
 let hopping = false;
 let hopStartTime = 0;
@@ -19,6 +19,9 @@ let beatThresholdSlider;
 let beatThreshold = 0.06;
 let initialY;
 let thresholdValueLabel;
+let hopHeightSlider;
+let currentHopHeight = 200; // Inizializzato a 200
+let hopHeightValueLabel;
 
 let beatCooldownSlider;
 let beatCooldownValueLabel;
@@ -59,7 +62,9 @@ function setup() {
     textObj = {
         x: width / 2,
         y: initialY,
-        startY: initialY
+        startY: initialY,
+        hopStartTimeElastic: null,
+        scaleY: 1
     };
 
     if (!sound) {
@@ -97,7 +102,7 @@ function setup() {
     startTimeValueLabel.position(330, height + 200);
     currentStartTime = 10;
 
-    beatCooldownSlider = createSlider(10, 500, beatCooldown, 10);
+    beatCooldownSlider = createSlider(0, 500, beatCooldown, 10); // Valore minimo cambiato a 0
     beatCooldownSlider.position(20, height + 240);
     beatCooldownSlider.style('width', '300px');
     beatCooldownValueLabel = createDiv("Cooldown Beat: " + beatCooldown);
@@ -110,16 +115,17 @@ function setup() {
 
     lowPassFreqSlider = createSlider(50, 1000, 970, 10); // Inizializzato anche lo slider
     lowPassFreqSlider.position(20, height + 280);
-    lowPassFreqSlider.style('width', '300px');
+    lowPassFreqSlider.style('width', '300px'); // Allungato lo slider
     lowPassFreqValueLabel = createDiv("Freq. Low Pass: " + 970);
     lowPassFreqValueLabel.position(330, height + 280);
     lowPassFreqSlider.input(() => {
         lowPass.freq(lowPassFreqSlider.value());
-        lowPassFreqValueLabel.html("Freq. Low Pass: " + lowPass.freq());
+        lowPassFreqValueLabel.html("Freq. Low Pass: " + lowPass.freq().toFixed(1)); // Visualizzazione aggiornata
     });
 
     lowPassResSlider = createSlider(0, 10, 1, 0.1); // Initialize with default value
     lowPassResSlider.position(20, height + 320);
+    lowPassResSlider.style('width', '300px'); // Allungato lo slider
     lowPassResValueLabel = createDiv("Res. Low Pass: " + 1.0);
     lowPassResValueLabel.position(330, height + 320);
     lowPassResSlider.input(() => {
@@ -132,6 +138,51 @@ function setup() {
     equalizerCheckbox.changed(() => {
         showEqualizer = equalizerCheckbox.checked();
     });
+
+    hopHeightSlider = createSlider(50, 300, 200, 5); // Inizializzato lo slider con il valore iniziale
+    hopHeightSlider.position(20, height + 400);
+    hopHeightSlider.style('width', '300px');
+    hopHeightValueLabel = createDiv("Altezza Salto: " + 200); // Inizializzata la label
+    hopHeightSlider.input(() => {
+        currentHopHeight = hopHeightSlider.value();
+        hopHeightValueLabel.html("Altezza Salto: " + currentHopHeight);
+    });
+}
+
+// Funzione di interpolazione per il rimbalzo
+function bezierCurve(t, inFactor, outFactor) {
+    let c = 3 * inFactor;
+    let b = 3 * (1 - outFactor - inFactor) - c;
+    let a = 1 - c - b;
+    return a * pow(t, 3) + b * pow(t, 2) + c * t;
+}
+
+function elasticHop(obj, hopAmount, duration, inFactor, outFactor, squashFactor) {
+    if (obj.hopStartTimeElastic === null) {
+        obj.hopStartTimeElastic = millis() / 1000;
+    }
+    let elapsed = (millis() / 1000) - obj.hopStartTimeElastic;
+    let t = elapsed / duration; // Normalizza rispetto alla durata dell'hop
+
+    if (t >= 1) {
+        t = 1;
+        obj.hopStartTimeElastic = null; // Reset per il prossimo hop
+        obj.y = obj.startY;
+        obj.scaleY = 1;
+        hopping = false;
+        return true; // Indica che l'hop è completato
+    }
+
+    if (t < 0.5) {
+        t *= 2;
+        obj.y = obj.startY - hopAmount * bezierCurve(t, inFactor, 0);
+        obj.scaleY = 1 + squashFactor * (1 - t);
+    } else {
+        t = (t - 0.5) * 2;
+        obj.y = obj.startY - hopAmount * (1 - bezierCurve(t, 0, outFactor));
+        obj.scaleY = 1 + squashFactor * t;
+    }
+    return false; // Indica che l'hop non è ancora completato
 }
 
 function updateStartTime() {
@@ -193,29 +244,25 @@ function draw() {
     if (!hopping && level > beatThreshold && (beatTime - lastBeatTime) > beatCooldown) {
         lastBeatTime = beatTime;
         hopping = true;
-        hopStartTime = beatTime;
+        textObj.hopStartTimeElastic = null; // Inizia un nuovo hop
         console.log("Beat rilevato (LPF):", level, "a tempo:", beatTime, "Soglia:", beatThreshold);
     }
 
     if (hopping) {
-        let t = (millis() - hopStartTime) / hopDuration;
-        let easedT = sin(t * PI);
-
-        if (t >= 1) {
-            hopping = false;
-            textObj.y = textObj.startY;
-            console.log("Salto completato (LPF)");
-        } else {
-            textObj.y = textObj.startY - amount * easedT;
-        }
+        elasticHop(textObj, currentHopHeight, hopDuration, 0.2, 0.7, 0.3);
     } else {
         textObj.y = textObj.startY;
+        textObj.scaleY = 1;
     }
 
+    push();
+    translate(textObj.x, textObj.y);
+    scale(1, textObj.scaleY);
     fill(255);
     textSize(32);
     textAlign(CENTER, CENTER);
-    text("Hop", textObj.x, textObj.y);
+    text("Hop", 0, 0);
+    pop();
 
     if (showEqualizer) {
         let barWidthFFT = width / (numBarsFFT + 1);
@@ -235,7 +282,7 @@ function draw() {
     textSize(12);
     text("Soglia Beat: " + beatThreshold.toFixed(2), 20, height + 180);
     text("Cooldown Beat: " + beatCooldown, 20, height + 220);
-    text("Freq. Low Pass: " + lowPass.freq().toFixed(0), 20, height + 260);
+    text("Freq. Low Pass: " + lowPass.freq().toFixed(1), 20, height + 260); // Visualizzazione aggiornata
     text("Res. Low Pass: " + lowPass.res().toFixed(1), 20, height + 300);
     text("Partenza al secondo: " + currentStartTime, 20, height + 340);
 }
