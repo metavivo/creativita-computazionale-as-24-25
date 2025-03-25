@@ -7,6 +7,7 @@ let startTimeValueLabel;
 let currentStartTime = 0;
 let soundLoaded = false;
 let songTimeLabel;
+let isPaused = false; // Stato di pausa
 
 let textObj;
 let hopDuration = 0.3; // Durata del singolo hop in secondi
@@ -195,11 +196,13 @@ function toggleMusic() {
         if (sound.isPlaying()) {
             sound.pause();
             playButton.html('▶️ Riprendi');
+            isPaused = true; // Imposta lo stato di pausa
         } else {
             sound.play();
             sound.jump(currentStartTime);
             started = true;
             playButton.html('⏸️ Pausa');
+            isPaused = false; // Resetta lo stato di pausa
         }
     } else if (!soundLoaded) {
         console.log("Audio non ancora caricato.");
@@ -213,6 +216,7 @@ function restartMusic() {
         sound.jump(currentStartTime);
         started = true;
         playButton.html('⏸️ Pausa');
+        isPaused = false; // Resetta lo stato di pausa
     } else if (!soundLoaded) {
         console.log("Audio non ancora caricato.");
     }
@@ -241,18 +245,25 @@ function draw() {
     let level = analyzer.getLevel();
     let beatTime = millis();
 
-    if (!hopping && level > beatThreshold && (beatTime - lastBeatTime) > beatCooldown) {
-        lastBeatTime = beatTime;
-        hopping = true;
-        textObj.hopStartTimeElastic = null; // Inizia un nuovo hop
-        console.log("Beat rilevato (LPF):", level, "a tempo:", beatTime, "Soglia:", beatThreshold);
-    }
+    if (!isPaused) { // Esegui la rilevazione del beat solo se non in pausa
+        if (!hopping && level > beatThreshold && (beatTime - lastBeatTime) > beatCooldown) {
+            lastBeatTime = beatTime;
+            hopping = true;
+            textObj.hopStartTimeElastic = null; // Inizia un nuovo hop
+            console.log("Beat rilevato (LPF):", level, "a tempo:", beatTime, "Soglia:", beatThreshold);
+        }
 
-    if (hopping) {
-        elasticHop(textObj, currentHopHeight, hopDuration, 0.2, 0.7, 0.3);
+        if (hopping) {
+            elasticHop(textObj, currentHopHeight, hopDuration, 0.2, 0.7, 0.3);
+        } else {
+            textObj.y = textObj.startY;
+            textObj.scaleY = 1;
+        }
     } else {
+        // Se in pausa, assicurati che la parola sia al livello più basso
         textObj.y = textObj.startY;
         textObj.scaleY = 1;
+        hopping = false; // Interrompi qualsiasi hop in corso
     }
 
     push();
