@@ -1,3 +1,11 @@
+/*
+
+Qui abbiamo la concatenazione di due animazioni:
+  1. una scritta si muove da sinistra a destra a velocità costante
+  2. la scritta salta con effetto "hop elastico"
+
+*/
+
 let animationData;
 let kString;
 let startTime;
