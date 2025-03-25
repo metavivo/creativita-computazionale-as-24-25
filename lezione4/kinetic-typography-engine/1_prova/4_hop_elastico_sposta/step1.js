@@ -1,3 +1,5 @@
+// Inutile: non vedo differenza rispetto a 3_hop_elastico
+
 
 let textObj;
 let duration = 2000; // Durata del salto in millisecondi
