@@ -1,3 +1,5 @@
+// Bello!
+
 let textObj;
 let hopAmount = 100; // Altezza del salto
 let duration = 2000; // Durata del salto in millisecondi
