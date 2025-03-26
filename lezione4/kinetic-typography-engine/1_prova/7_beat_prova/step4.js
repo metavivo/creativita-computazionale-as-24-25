@@ -40,7 +40,8 @@ function setup() {
   freqMinSlider.position(20, height + 10);
   freqMinSlider.style('width', '130px');
 
-  freqMaxSlider = createSlider(0, 1023, 40, 1);
+//  freqMaxSlider = createSlider(0, 1023, 40, 1);
+  freqMaxSlider = createSlider(0, 1023, 300, 1);  
   freqMaxSlider.position(170, height + 10);
   freqMaxSlider.style('width', '130px');
 }
